@@ -1,4 +1,5 @@
 import base64
+import time
 import urllib
 from uuid import uuid1
 
@@ -14,7 +15,21 @@ from fastai.vision import load_learner
 from flask import Flask, request, render_template
 from core import FeatureLoss
 
+import logging
+
 learn = None
+
+applogger = logging.getLogger("record.log")
+fmt = "%(asctime)-15s %(levelname)s %(filename)s %(lineno)d %(message)s"
+formatter = logging.Formatter(fmt)
+# handler = logging.FileHandler("record.log")
+# handler.setFormatter(formatter)
+# handler.setLevel(logging.NOTSET)
+# applogger.addHandler(handler)
+console = logging.StreamHandler()
+console.setLevel(logging.NOTSET)
+console.setFormatter(formatter)
+applogger.addHandler(console)
 
 
 # singleton start
@@ -60,7 +75,7 @@ def index_view():
 def read_img_file_as_base64(local_file) -> str:
     with open(local_file, "rb") as rf:
         base64_str = base64.b64encode(rf.read())
-        os.remove(local_file)
+        # os.remove(local_file)
         return base64_str.decode()
 
 
@@ -75,7 +90,8 @@ def result_view():
     f.save(local_file)
 
     try:
-        img = PIL.Image.open(local_file)
+        # img = PIL.Image.open(local_file)
+        img = PIL.Image.open(local_file).convert('RGB')
         img_t = T.ToTensor()(img)
         img_fast = Image(img_t)
 
@@ -83,7 +99,11 @@ def result_view():
         r = Image(img_hr)
         demo_show(r, figsize=(8, 8), out_file=local_filename)
         result_img_base64 = read_img_file_as_base64('result/' + local_filename)
-    except Exception  as e:
+        # gc.collect()
+        # torch.cuda.empty_cache()
+        # time.sleep(10)
+    except Exception as e:
+        applogger.exception(e)
         return render_template('result.html', error=True)
     finally:
         if os.path.exists(local_file):
@@ -93,4 +113,4 @@ def result_view():
 
 
 if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0')
